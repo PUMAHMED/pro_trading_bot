@@ -1,0 +1,30 @@
+# Telegram Bot
+TELEGRAM_TOKEN=your_telegram_bot_token_here
+ADMIN_ID=your_telegram_user_id_here
+
+# MEXC Exchange
+MEXC_API_KEY=your_mexc_api_key
+MEXC_API_SECRET=your_mexc_api_secret
+
+# Binance Exchange  
+BINANCE_API_KEY=your_binance_api_key
+BINANCE_API_SECRET=your_binance_api_secret
+
+# Database (Railway otomatik sağlar, local için)
+DATABASE_URL=postgresql://user:password@localhost:5432/trading_bot
+
+# Redis (Opsiyonel - Railway'de eklenebilir)
+REDIS_URL=redis://localhost:6379
+
+# Logging
+LOG_LEVEL=INFO
+
+# Trading Settings (Opsiyonel - varsayılanlar config'te)
+MIN_PROFIT_TARGET=4.0
+MIN_LEVERAGE=20
+MAX_LEVERAGE=500
+MAX_DAILY_SIGNALS=100
+
+# Scanner Settings
+SCAN_INTERVAL=30
+MIN_VOLUME_USD=500000
