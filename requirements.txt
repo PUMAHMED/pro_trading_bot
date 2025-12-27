@@ -22,8 +22,7 @@ TA-Lib==0.4.28
 # Technical analysis
 
 python-binance==1.0.19
-pandas-ta @ git+https://github.com/twopirllc/pandas-ta.git
-
+ta==0.11.0
 # Charts and reports
 
 matplotlib==3.8.2
