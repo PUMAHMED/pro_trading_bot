@@ -1,423 +1,380 @@
-“””
-MEXC Pro Trading Bot - Constants
-Sabit değerler ve enum’lar
-“””
-
-from enum import Enum, auto
-from typing import Dict
-
-class SignalType(Enum):
-“”“Sinyal türleri”””
-LONG = “LONG”
-SHORT = “SHORT”
-
-class SignalQuality(Enum):
-“”“Sinyal kalite seviyeleri”””
-EXCELLENT = “🔥 MÜKEMMEL”
-HIGH = “⭐ YÜKSEK”
-MEDIUM = “✅ ORTA”
-LOW = “⚠️ DÜŞÜK”
-
-class SignalStatus(Enum):
-“”“Sinyal durumları”””
-ACTIVE = “active”
-TP1_HIT = “tp1_hit”
-TP2_HIT = “tp2_hit”
-TP3_HIT = “tp3_hit”
-SL_HIT = “sl_hit”
-EXPIRED = “expired”
-CANCELLED = “cancelled”
-
-class MarketPhase(Enum):
-“”“Piyasa fazları”””
-ACCUMULATION = “accumulation”
-MARKUP = “markup”
-DISTRIBUTION = “distribution”
-MARKDOWN = “markdown”
-RANGING = “ranging”
-
-class TrendDirection(Enum):
-“”“Trend yönleri”””
-STRONG_UPTREND = “strong_uptrend”
-UPTREND = “uptrend”
-SIDEWAYS = “sideways”
-DOWNTREND = “downtrend”
-STRONG_DOWNTREND = “strong_downtrend”
-
-class ManipulationType(Enum):
-“”“Manipülasyon türleri”””
-PUMP = “pump”
-DUMP = “dump”
-WASH_TRADING = “wash_trading”
-SPOOFING = “spoofing”
-LIQUIDITY_HUNT = “liquidity_hunt”
-NONE = “none”
-
-class ExchangeName(Enum):
-“”“Exchange isimleri”””
-MEXC = “MEXC”
-BINANCE = “Binance”
-
-# Emoji ve simgeler
-
-EMOJIS = {
-‘rocket’: ‘🚀’,
-‘fire’: ‘🔥’,
-‘star’: ‘⭐’,
-‘check’: ‘✅’,
-‘warning’: ‘⚠️’,
-‘cross’: ‘❌’,
-‘chart_up’: ‘📈’,
-‘chart_down’: ‘📉’,
-‘money’: ‘💰’,
-‘bell’: ‘🔔’,
-‘target’: ‘🎯’,
-‘shield’: ‘🛡️’,
-‘clock’: ‘⏰’,
-‘brain’: ‘🧠’,
-‘crystal_ball’: ‘🔮’,
-‘whale’: ‘🐋’,
-‘magnifying_glass’: ‘🔍’,
-‘gear’: ‘⚙️’,
-‘document’: ‘📄’,
-‘lightning’: ‘⚡’,
-‘trophy’: ‘🏆’,
-‘graph’: ‘📊’,
-‘robot’: ‘🤖’,
-‘info’: ‘ℹ️’,
-‘exclamation’: ‘❗’,
-‘bullseye’: ‘🎯’,
-‘up_arrow’: ‘⬆️’,
-‘down_arrow’: ‘⬇️’,
-‘hourglass’: ‘⏳’,
-‘checkmark’: ‘✓’,
-‘xmark’: ‘✗’
-}
-
-# Kalite eşikleri için skorlar
-
-QUALITY_THRESHOLDS = {
-SignalQuality.EXCELLENT: 90.0,
-SignalQuality.HIGH: 75.0,
-SignalQuality.MEDIUM: 60.0,
-SignalQuality.LOW: 0.0
-}
-
-# Teknik indikatör skorları için ağırlıklar
-
-INDICATOR_WEIGHTS = {
-‘trend’: 0.25,
-‘momentum’: 0.20,
-‘volume’: 0.20,
-‘support_resistance’: 0.15,
-‘pattern’: 0.10,
-‘orderbook’: 0.10
-}
-
-# Volume analizi için kategoriler
-
-VOLUME_CATEGORIES = {
-‘very_high’: 3.0,  # Normal’in 3x üstü
-‘high’: 2.0,       # Normal’in 2x üstü
-‘normal’: 1.0,     # Normal range
-‘low’: 0.5,        # Normal’in altı
-‘very_low’: 0.25   # Çok düşük
-}
-
-# RSI seviyeleri
-
-RSI_LEVELS = {
-‘extreme_oversold’: 20,
-‘oversold’: 30,
-‘neutral_low’: 40,
-‘neutral_high’: 60,
-‘overbought’: 70,
-‘extreme_overbought’: 80
-}
-
-# Bollinger Bands pozisyonları
-
-BB_POSITIONS = {
-‘below_lower’: -2.0,
-‘at_lower’: -1.0,
-‘middle_lower’: -0.5,
-‘middle’: 0.0,
-‘middle_upper’: 0.5,
-‘at_upper’: 1.0,
-‘above_upper’: 2.0
-}
-
-# Pattern güven skorları
-
-PATTERN_CONFIDENCE = {
-‘double_bottom’: 0.85,
-‘double_top’: 0.85,
-‘head_shoulders’: 0.80,
-‘inverse_head_shoulders’: 0.80,
-‘triangle_breakout’: 0.75,
-‘flag’: 0.70,
-‘wedge’: 0.70,
-‘channel_breakout’: 0.65
-}
-
-# Kaldıraç risk seviyeleri
-
-LEVERAGE_RISK_MAP = {
-(20, 50): ‘low’,
-(51, 100): ‘medium’,
-(101, 200): ‘high’,
-(201, 500): ‘extreme’
-}
-
-# Zaman periyotları (saniye)
-
-TIME_PERIODS = {
-‘1m’: 60,
-‘5m’: 300,
-‘15m’: 900,
-‘30m’: 1800,
-‘1h’: 3600,
-‘2h’: 7200,
-‘4h’: 14400,
-‘6h’: 21600,
-‘12h’: 43200,
-‘1d’: 86400
-}
-
-# Telegram komutları
-
-BOT_COMMANDS = {
-‘start’: ‘Botu başlat’,
-‘help’: ‘Yardım menüsü’,
-‘status’: ‘Bot durumu’,
-‘stats’: ‘İstatistikler’,
-‘analyze’: ‘Coin analiz et’,
-‘settings’: ‘Ayarlar’,
-‘report’: ‘Günlük rapor’,
-‘stop’: ‘Taramayı durdur’,
-‘resume’: ‘Taramayı başlat’
-}
-
-# Hata mesajları
-
-ERROR_MESSAGES = {
-‘api_error’: ‘❌ API bağlantı hatası’,
-‘rate_limit’: ‘⚠️ Rate limit aşıldı, bekleniyor…’,
-‘invalid_symbol’: ‘❌ Geçersiz coin sembolü’,
-‘insufficient_data’: ‘⚠️ Yetersiz veri’,
-‘analysis_failed’: ‘❌ Analiz başarısız’,
-‘database_error’: ‘❌ Veritabanı hatası’,
-‘network_error’: ‘❌ Ağ bağlantı hatası’
-}
-
-# Başarı mesajları
-
-SUCCESS_MESSAGES = {
-‘scan_started’: ‘✅ Tarama başlatıldı’,
-‘scan_stopped’: ‘✅ Tarama durduruldu’,
-‘signal_sent’: ‘✅ Sinyal gönderildi’,
-‘settings_updated’: ‘✅ Ayarlar güncellendi’,
-‘report_generated’: ‘✅ Rapor oluşturuldu’
-}
-
-# API endpoint’leri
-
-API_ENDPOINTS = {
-‘mexc’: {
-‘base’: ‘https://api.mexc.com’,
-‘futures_base’: ‘https://contract.mexc.com’
-},
-‘binance’: {
-‘base’: ‘https://api.binance.com’,
-‘futures_base’: ‘https://fapi.binance.com’
-}
-}
-
-# Webhook URL’leri (opsiyonel)
-
-WEBHOOK_URLS = {
-‘tradingview’: ‘’,
-‘custom’: ‘’
-}
-
-# Chart stilleri
-
-CHART_STYLE = {
-‘colors’: {
-‘up’: ‘#26a69a’,
-‘down’: ‘#ef5350’,
-‘volume_up’: ‘#26a69a80’,
-‘volume_down’: ‘#ef535080’,
-‘ma_fast’: ‘#2196F3’,
-‘ma_slow’: ‘#FF9800’,
-‘rsi’: ‘#9C27B0’,
-‘macd’: ‘#00BCD4’,
-‘signal’: ‘#FF5722’
-},
-‘figure_size’: (12, 8),
-‘dpi’: 100
-}
-
-# PDF rapor stilleri
-
-PDF_STYLE = {
-‘title_font_size’: 24,
-‘heading_font_size’: 16,
-‘text_font_size’: 11,
-‘colors’: {
-‘primary’: ‘#1976D2’,
-‘success’: ‘#4CAF50’,
-‘warning’: ‘#FF9800’,
-‘danger’: ‘#F44336’,
-‘text’: ‘#212121’,
-‘background’: ‘#FAFAFA’
-}
-}
-
-# Database tablo isimleri
-
-DB_TABLES = {
-‘signals’: ‘signals’,
-‘scans’: ‘scans’,
-‘analysis’: ‘analysis_results’,
-‘performance’: ‘performance_metrics’,
-‘coins’: ‘coin_list’,
-‘ml_predictions’: ‘ml_predictions’,
-‘whale_activity’: ‘whale_activity’,
-‘market_data’: ‘market_data’
-}
-
-# Cache key prefix’leri
-
-CACHE_KEYS = {
-‘kline’: ‘kline:’,
-‘ticker’: ‘ticker:’,
-‘orderbook’: ‘orderbook:’,
-‘analysis’: ‘analysis:’,
-‘coin_list’: ‘coins:’,
-‘volume_profile’: ‘volume_profile:’
-}
-
-# Webhook event tipleri
-
-WEBHOOK_EVENTS = {
-‘signal_created’: ‘signal.created’,
-‘signal_updated’: ‘signal.updated’,
-‘tp_hit’: ‘target.hit’,
-‘sl_hit’: ‘stoploss.hit’,
-‘analysis_broken’: ‘analysis.broken’
-}
-
-# Machine Learning feature’ları
-
-ML_FEATURES = [
-‘rsi’, ‘macd’, ‘macd_signal’, ‘macd_hist’,
-‘bb_upper’, ‘bb_middle’, ‘bb_lower’, ‘bb_width’,
-‘ema_fast’, ‘ema_slow’, ‘ema_diff’,
-‘volume_ratio’, ‘volume_trend’,
-‘price_change_1h’, ‘price_change_4h’, ‘price_change_24h’,
-‘high_low_ratio’, ‘close_open_ratio’,
-‘support_distance’, ‘resistance_distance’,
-‘trend_strength’, ‘momentum_score’,
-‘volatility’, ‘atr’,
-‘orderbook_imbalance’, ‘spread_percent’,
-‘whale_orders_ratio’, ‘large_trades_count’
-]
-
-# Notification templates
-
-NOTIFICATION_TEMPLATES = {
-‘signal’: “””
-{emoji} {quality} SİNYAL - {exchange}
-
-💎 Coin: {symbol}
-📊 Yön: {direction}
-💰 Fiyat: {price}
-
-🎯 Hedefler:
-TP1: {tp1} ({tp1_percent}%)
-TP2: {tp2} ({tp2_percent}%)
-TP3: {tp3} ({tp3_percent}%)
-
-🛡️ Stop Loss: {sl} ({sl_percent}%)
-⚡ Kaldıraç: {leverage}x
-
-⏰ Tahmini Süre: {estimated_time}
-📈 Sinyal Skoru: {score}/100
-🧠 Güven: {confidence}%
-
-📊 Analiz Özeti:
-{analysis_summary}
-
-⚠️ Risk: {risk_level}
-“””,
-‘update’: “””
-🔄 SİNYAL GÜNCELLENDİ
-
-💎 Coin: {symbol}
-📊 Güncelleme: {update_type}
-
-{details}
-“””,
-‘tp_reached’: “””
-🎉 HEDEF ULAŞILDI!
-
-💎 Coin: {symbol}
-🎯 {tp_level}: {price}
-💰 Kar: {profit}%
-
-⏱️ Süre: {duration}
-“””,
-‘heartbeat’: “””
-💓 Sistem Durumu
-
-⏰ {timestamp}
-✅ Tarama: Aktif
-📊 İşlenen Coin: {coins_scanned}
-📈 Bugünkü Sinyaller: {signals_today}
-🎯 Başarı Oranı: {success_rate}%
-“””
-}
-
-def get_quality_from_score(score: float) -> SignalQuality:
-“”“Skordan kalite seviyesi belirle”””
-if score >= QUALITY_THRESHOLDS[SignalQuality.EXCELLENT]:
-return SignalQuality.EXCELLENT
-elif score >= QUALITY_THRESHOLDS[SignalQuality.HIGH]:
-return SignalQuality.HIGH
-elif score >= QUALITY_THRESHOLDS[SignalQuality.MEDIUM]:
-return SignalQuality.MEDIUM
-else:
-return SignalQuality.LOW
-
-def get_leverage_recommendation(score: float, volatility: float) -> int:
-“”“Skordan kaldıraç önerisi”””
-from config.settings import trading_config
-
-```
-# Yüksek volatilite = düşük kaldıraç
-if volatility > 15:
-    max_lev = 50
-elif volatility > 10:
-    max_lev = 100
-elif volatility > 5:
-    max_lev = 200
-else:
-    max_lev = trading_config.MAX_LEVERAGE
-
-# Yüksek skor = yüksek kaldıraç
-if score >= 90:
-    leverage = max_lev
-elif score >= 80:
-    leverage = int(max_lev * 0.8)
-elif score >= 70:
-    leverage = int(max_lev * 0.6)
-else:
-    leverage = int(max_lev * 0.4)
-
-# Limitleri kontrol et
-leverage = max(trading_config.MIN_LEVERAGE, leverage)
-leverage = min(trading_config.MAX_LEVERAGE, leverage)
-
-return leverage
-```
+"""
+MEXC Pro Trading Bot - Database Models
+SQLAlchemy ORM modelleri
+"""
+
+from datetime import datetime
+from sqlalchemy import (
+    Column, Integer, String, Float, Boolean, DateTime, 
+    Text, JSON, ForeignKey, Index, Enum as SQLEnum
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from config.constants import SignalType, SignalStatus, SignalQuality, ExchangeName
+
+Base = declarative_base()
+
+class Signal(Base):
+    """Trading sinyalleri"""
+    __tablename__ = 'signals'
+    
+    id = Column(Integer, primary_key=True)
+    
+    # Temel bilgiler
+    symbol = Column(String(20), nullable=False, index=True)
+    exchange = Column(SQLEnum(ExchangeName), nullable=False)
+    signal_type = Column(SQLEnum(SignalType), nullable=False)
+    
+    # Fiyat bilgileri
+    entry_price = Column(Float, nullable=False)
+    current_price = Column(Float)
+    
+    # Hedefler
+    tp1 = Column(Float, nullable=False)
+    tp2 = Column(Float)
+    tp3 = Column(Float)
+    stop_loss = Column(Float, nullable=False)
+    
+    # Kaldıraç
+    leverage = Column(Integer, nullable=False)
+    
+    # Kalite ve skor
+    quality = Column(SQLEnum(SignalQuality), nullable=False)
+    score = Column(Float, nullable=False)
+    confidence = Column(Float, nullable=False)
+    
+    # Durum
+    status = Column(SQLEnum(SignalStatus), default=SignalStatus.ACTIVE)
+    
+    # Zaman bilgileri
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = Column(DateTime)
+    closed_at = Column(DateTime)
+    
+    # Tahminler
+    estimated_duration_minutes = Column(Integer)
+    estimated_profit_percent = Column(Float)
+    
+    # Analiz detayları
+    analysis_summary = Column(Text)
+    technical_score = Column(Float)
+    volume_score = Column(Float)
+    momentum_score = Column(Float)
+    pattern_score = Column(Float)
+    
+    # Risk yönetimi
+    risk_level = Column(String(20))
+    max_position_size = Column(Float)
+    
+    # Performans tracking
+    tp1_hit = Column(Boolean, default=False)
+    tp1_hit_at = Column(DateTime)
+    tp2_hit = Column(Boolean, default=False)
+    tp2_hit_at = Column(DateTime)
+    tp3_hit = Column(Boolean, default=False)
+    tp3_hit_at = Column(DateTime)
+    sl_hit = Column(Boolean, default=False)
+    sl_hit_at = Column(DateTime)
+    
+    actual_profit_percent = Column(Float)
+    actual_duration_minutes = Column(Integer)
+    
+    # İlişkiler
+    analysis_snapshots = relationship("AnalysisSnapshot", back_populates="signal")
+    
+    __table_args__ = (
+        Index('idx_signal_status_created', 'status', 'created_at'),
+        Index('idx_signal_exchange_symbol', 'exchange', 'symbol'),
+    )
+
+class AnalysisSnapshot(Base):
+    """Analiz anlık görüntüleri"""
+    __tablename__ = 'analysis_snapshots'
+    
+    id = Column(Integer, primary_key=True)
+    signal_id = Column(Integer, ForeignKey('signals.id'))
+    
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Teknik indikatörler
+    rsi = Column(Float)
+    macd = Column(Float)
+    macd_signal = Column(Float)
+    macd_histogram = Column(Float)
+    
+    bb_upper = Column(Float)
+    bb_middle = Column(Float)
+    bb_lower = Column(Float)
+    bb_position = Column(Float)
+    
+    ema_fast = Column(Float)
+    ema_slow = Column(Float)
+    
+    # Volume
+    volume = Column(Float)
+    volume_ma = Column(Float)
+    volume_ratio = Column(Float)
+    
+    # Price action
+    support_levels = Column(JSON)
+    resistance_levels = Column(JSON)
+    
+    # Trend
+    trend_direction = Column(String(50))
+    trend_strength = Column(Float)
+    
+    # Market structure
+    higher_highs = Column(Boolean)
+    higher_lows = Column(Boolean)
+    lower_highs = Column(Boolean)
+    lower_lows = Column(Boolean)
+    
+    # Volatility
+    atr = Column(Float)
+    volatility_percent = Column(Float)
+    
+    # İlişki
+    signal = relationship("Signal", back_populates="analysis_snapshots")
+
+class CoinInfo(Base):
+    """Coin bilgileri"""
+    __tablename__ = 'coin_info'
+    
+    id = Column(Integer, primary_key=True)
+    
+    symbol = Column(String(20), nullable=False, index=True)
+    exchange = Column(SQLEnum(ExchangeName), nullable=False)
+    
+    # Durum
+    is_active = Column(Boolean, default=True)
+    is_futures_available = Column(Boolean, default=False)
+    
+    # Market data
+    current_price = Column(Float)
+    volume_24h = Column(Float)
+    price_change_24h = Column(Float)
+    
+    market_cap = Column(Float)
+    circulating_supply = Column(Float)
+    
+    # Trading info
+    min_order_size = Column(Float)
+    max_leverage = Column(Integer)
+    tick_size = Column(Float)
+    
+    # Statistikler
+    total_scans = Column(Integer, default=0)
+    total_signals = Column(Integer, default=0)
+    successful_signals = Column(Integer, default=0)
+    
+    # Average performance
+    avg_profit_percent = Column(Float)
+    avg_duration_minutes = Column(Float)
+    
+    # Zaman bilgileri
+    first_seen = Column(DateTime, default=datetime.utcnow)
+    last_scanned = Column(DateTime)
+    last_signal = Column(DateTime)
+    
+    __table_args__ = (
+        Index('idx_coin_active_exchange', 'is_active', 'exchange'),
+        Index('idx_coin_symbol_exchange', 'symbol', 'exchange', unique=True),
+    )
+
+class ScanResult(Base):
+    """Tarama sonuçları"""
+    __tablename__ = 'scan_results'
+    
+    id = Column(Integer, primary_key=True)
+    
+    symbol = Column(String(20), nullable=False, index=True)
+    exchange = Column(SQLEnum(ExchangeName), nullable=False)
+    
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Tarama sonucu
+    passed_filters = Column(Boolean, default=False)
+    signal_generated = Column(Boolean, default=False)
+    
+    # Skorlar
+    overall_score = Column(Float)
+    technical_score = Column(Float)
+    volume_score = Column(Float)
+    momentum_score = Column(Float)
+    manipulation_check_score = Column(Float)
+    
+    # Neden elendiği
+    rejection_reasons = Column(JSON)
+    
+    # Temel metrikler
+    price = Column(Float)
+    volume_24h = Column(Float)
+    price_change_1h = Column(Float)
+    price_change_24h = Column(Float)
+    volatility = Column(Float)
+    
+    __table_args__ = (
+        Index('idx_scan_timestamp_symbol', 'timestamp', 'symbol'),
+    )
+
+class WhaleActivity(Base):
+    """Balina aktiviteleri"""
+    __tablename__ = 'whale_activity'
+    
+    id = Column(Integer, primary_key=True)
+    
+    symbol = Column(String(20), nullable=False, index=True)
+    exchange = Column(SQLEnum(ExchangeName), nullable=False)
+    
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Order detayları
+    side = Column(String(10))  # buy/sell
+    price = Column(Float)
+    amount = Column(Float)
+    total_usd = Column(Float)
+    
+    # Order book pozisyonu
+    distance_from_price_percent = Column(Float)
+    
+    # Impact
+    orderbook_dominance_percent = Column(Float)
+    
+    __table_args__ = (
+        Index('idx_whale_symbol_timestamp', 'symbol', 'timestamp'),
+    )
+
+class PerformanceMetric(Base):
+    """Performans metrikleri"""
+    __tablename__ = 'performance_metrics'
+    
+    id = Column(Integer, primary_key=True)
+    
+    date = Column(DateTime, nullable=False, unique=True, index=True)
+    
+    # Sinyal metrikleri
+    total_signals = Column(Integer, default=0)
+    excellent_signals = Column(Integer, default=0)
+    high_signals = Column(Integer, default=0)
+    medium_signals = Column(Integer, default=0)
+    low_signals = Column(Integer, default=0)
+    
+    # Sonuçlar
+    tp1_hit_count = Column(Integer, default=0)
+    tp2_hit_count = Column(Integer, default=0)
+    tp3_hit_count = Column(Integer, default=0)
+    sl_hit_count = Column(Integer, default=0)
+    
+    # Kar/zarar
+    total_profit_percent = Column(Float, default=0.0)
+    avg_profit_percent = Column(Float)
+    max_profit_percent = Column(Float)
+    min_profit_percent = Column(Float)
+    
+    # Win rate
+    win_rate = Column(Float)
+    success_rate_tp1 = Column(Float)
+    success_rate_tp2 = Column(Float)
+    success_rate_tp3 = Column(Float)
+    
+    # Timing
+    avg_duration_minutes = Column(Float)
+    fastest_win_minutes = Column(Integer)
+    slowest_win_minutes = Column(Integer)
+    
+    # En iyi performans
+    best_coin = Column(String(20))
+    best_coin_profit = Column(Float)
+    worst_coin = Column(String(20))
+    worst_coin_profit = Column(Float)
+    
+    # Exchange breakdown
+    mexc_signals = Column(Integer, default=0)
+    binance_signals = Column(Integer, default=0)
+    
+    # System metrics
+    total_scans = Column(Integer, default=0)
+    avg_scan_duration_ms = Column(Float)
+    api_errors = Column(Integer, default=0)
+
+class MLPrediction(Base):
+    """Machine Learning tahminleri"""
+    __tablename__ = 'ml_predictions'
+    
+    id = Column(Integer, primary_key=True)
+    
+    symbol = Column(String(20), nullable=False, index=True)
+    exchange = Column(SQLEnum(ExchangeName), nullable=False)
+    
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Tahmin
+    predicted_direction = Column(SQLEnum(SignalType))
+    predicted_move_percent = Column(Float)
+    confidence = Column(Float)
+    
+    # Features kullanılan
+    features_used = Column(JSON)
+    feature_importance = Column(JSON)
+    
+    # Model bilgisi
+    model_version = Column(String(50))
+    model_accuracy = Column(Float)
+    
+    # Gerçek sonuç (sonradan güncellenir)
+    actual_direction = Column(SQLEnum(SignalType))
+    actual_move_percent = Column(Float)
+    prediction_correct = Column(Boolean)
+    
+    validated_at = Column(DateTime)
+
+class SystemLog(Base):
+    """Sistem logları"""
+    __tablename__ = 'system_logs'
+    
+    id = Column(Integer, primary_key=True)
+    
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    level = Column(String(20))  # INFO, WARNING, ERROR
+    category = Column(String(50))  # SCAN, ANALYSIS, SIGNAL, API, etc.
+    
+    message = Column(Text)
+    details = Column(JSON)
+    
+    # Error tracking
+    error_type = Column(String(100))
+    stack_trace = Column(Text)
+    
+    __table_args__ = (
+        Index('idx_log_timestamp_level', 'timestamp', 'level'),
+    )
+
+class UserPreference(Base):
+    """Kullanıcı tercihleri"""
+    __tablename__ = 'user_preferences'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, unique=True)
+    
+    # Bildirim tercihleri
+    notify_all_signals = Column(Boolean, default=True)
+    notify_high_quality_only = Column(Boolean, default=False)
+    min_signal_score = Column(Float, default=70.0)
+    
+    notify_tp_reached = Column(Boolean, default=True)
+    notify_sl_approaching = Column(Boolean, default=True)
+    notify_analysis_updates = Column(Boolean, default=True)
+    
+    # Coin filtreleri
+    excluded_coins = Column(JSON)
+    preferred_exchanges = Column(JSON)
+    
+    # Risk tercihleri
+    max_leverage = Column(Integer, default=100)
+    risk_tolerance = Column(String(20), default='medium')
+    
+    # Özel ayarlar
+    custom_settings = Column(JSON)
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
