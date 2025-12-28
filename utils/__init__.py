@@ -10,9 +10,20 @@ from utils.helpers import (
     calculate_atr,
     calculate_volatility,
     timeframe_to_seconds,
-    seconds_to_timeframe_string
+    seconds_to_timeframe_string,
+    calculate_support_resistance,
+    merge_similar_levels,
+    calculate_ema,
+    calculate_sma,
+    calculate_rsi,
+    calculate_macd,
+    calculate_bollinger_bands,
+    detect_trend,
+    estimate_duration,
+    format_duration,
+    get_risk_level
 )
-from utils.cache import CacheManager
+from utils.cache import cache_manager, CacheManager
 from utils.performance import PerformanceMonitor
 
 __all__ = [
@@ -25,6 +36,18 @@ __all__ = [
     'calculate_volatility',
     'timeframe_to_seconds',
     'seconds_to_timeframe_string',
+    'calculate_support_resistance',
+    'merge_similar_levels',
+    'calculate_ema',
+    'calculate_sma',
+    'calculate_rsi',
+    'calculate_macd',
+    'calculate_bollinger_bands',
+    'detect_trend',
+    'estimate_duration',
+    'format_duration',
+    'get_risk_level',
+    'cache_manager',
     'CacheManager',
     'PerformanceMonitor'
 ]
