@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 class RiskManager:
-"""Risk yönetim sınıfı"""
+    """Risk yönetim sınıfı"""
 
 '''
 def __init__(self):
