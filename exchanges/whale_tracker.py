@@ -1,78 +1,91 @@
 """
 MEXC Pro Trading Bot - Whale Tracker
-Balina aktivitesi takibi
+Balina aktivitesi takip modülü
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from config.settings import manipulation_config
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 class WhaleTracker:
     """Balina order takibi"""
     
     def __init__(self):
-        self.whale_threshold = manipulation_config.WHALE_ORDER_THRESHOLD
-        self.max_dominance = manipulation_config.MAX_WHALE_DOMINANCE
+        self.config = manipulation_config
+        self.whale_threshold = self.config.WHALE_ORDER_THRESHOLD
     
     async def analyze_orderbook(self, orderbook: Dict[str, Any], current_price: float) -> Dict[str, Any]:
         """Order book'ta balina aktivitesi analiz et"""
         try:
-            bids = orderbook.get('bids', [])
-            asks = orderbook.get('asks', [])
-            
-            if not bids or not asks:
+            if not orderbook or not orderbook.get('bids') or not orderbook.get('asks'):
                 return self._empty_analysis()
             
-            # Whale orders tespit et
+            bids = orderbook['bids']
+            asks = orderbook['asks']
+            
+            # Balina orderları tespit et
             whale_bids = self._find_whale_orders(bids, current_price, 'bid')
             whale_asks = self._find_whale_orders(asks, current_price, 'ask')
             
-            # Order book dominance hesapla
-            total_bid_volume = sum(bid[1] * bid[0] for bid in bids)
-            total_ask_volume = sum(ask[1] * ask[0] for ask in asks)
+            # Total order book depth
+            total_bid_volume = sum(bid[0] * bid[1] for bid in bids[:20])
+            total_ask_volume = sum(ask[0] * ask[1] for ask in asks[:20])
+            total_volume = total_bid_volume + total_ask_volume
             
-            whale_bid_volume = sum(order['total_usd'] for order in whale_bids)
-            whale_ask_volume = sum(order['total_usd'] for order in whale_asks)
+            # Whale dominance
+            whale_bid_volume = sum(w['total_usd'] for w in whale_bids)
+            whale_ask_volume = sum(w['total_usd'] for w in whale_asks)
+            total_whale_volume = whale_bid_volume + whale_ask_volume
             
-            bid_dominance = (whale_bid_volume / total_bid_volume * 100) if total_bid_volume > 0 else 0
-            ask_dominance = (whale_ask_volume / total_ask_volume * 100) if total_ask_volume > 0 else 0
+            whale_dominance = (total_whale_volume / total_volume * 100) if total_volume > 0 else 0
             
-            # Whale pressure hesapla
-            net_whale_pressure = whale_bid_volume - whale_ask_volume
-            pressure_direction = 'bullish' if net_whale_pressure > 0 else 'bearish' if net_whale_pressure < 0 else 'neutral'
+            # Pressure direction
+            if whale_bid_volume > whale_ask_volume * 1.5:
+                pressure_direction = 'bullish'
+            elif whale_ask_volume > whale_bid_volume * 1.5:
+                pressure_direction = 'bearish'
+            else:
+                pressure_direction = 'neutral'
             
-            # Manipülasyon riski
+            # Manipulation risk
             manipulation_risk = self._assess_manipulation_risk(
-                bid_dominance,
-                ask_dominance,
+                whale_dominance,
                 len(whale_bids),
                 len(whale_asks)
             )
             
+            # Suspicious patterns
+            is_suspicious = (
+                whale_dominance > self.config.MAX_WHALE_DOMINANCE or
+                self._detect_spoofing_pattern(whale_bids, whale_asks)
+            )
+            
             return {
-                'has_whale_activity': len(whale_bids) > 0 or len(whale_asks) > 0,
+                'has_whale_activity': len(whale_bids) + len(whale_asks) > 0,
                 'whale_bids': whale_bids,
                 'whale_asks': whale_asks,
-                'whale_count': len(whale_bids) + len(whale_asks),
-                'bid_dominance_percent': round(bid_dominance, 2),
-                'ask_dominance_percent': round(ask_dominance, 2),
-                'net_whale_pressure_usd': round(net_whale_pressure, 2),
+                'whale_bid_count': len(whale_bids),
+                'whale_ask_count': len(whale_asks),
+                'whale_bid_volume_usd': round(whale_bid_volume, 2),
+                'whale_ask_volume_usd': round(whale_ask_volume, 2),
+                'whale_dominance_percent': round(whale_dominance, 2),
                 'pressure_direction': pressure_direction,
                 'manipulation_risk': manipulation_risk,
-                'is_suspicious': manipulation_risk in ['high', 'extreme']
+                'is_suspicious': is_suspicious
             }
             
         except Exception as e:
-            logger.error(f"❌ Whale analysis hatası: {e}")
+            logger.error(f"❌ Whale analiz hatası: {e}")
             return self._empty_analysis()
     
     def _find_whale_orders(self, orders: List[List], current_price: float, side: str) -> List[Dict[str, Any]]:
-        """Whale orders bul"""
+        """Balina orderlarını tespit et"""
         whale_orders = []
         
-        for order in orders:
+        for order in orders[:20]:
             price = order[0]
             amount = order[1]
             total_usd = price * amount
@@ -82,60 +95,37 @@ class WhaleTracker:
                 
                 whale_orders.append({
                     'side': side,
-                    'price': price,
-                    'amount': amount,
-                    'total_usd': total_usd,
-                    'distance_from_price_percent': round(distance_percent, 2)
+                    'price': round(price, 8),
+                    'amount': round(amount, 4),
+                    'total_usd': round(total_usd, 2),
+                    'distance_percent': round(distance_percent, 2)
                 })
         
         return whale_orders
     
-    def _assess_manipulation_risk(
-        self,
-        bid_dominance: float,
-        ask_dominance: float,
-        bid_whale_count: int,
-        ask_whale_count: int
-    ) -> str:
-        """Manipülasyon riski değerlendir"""
-        max_dominance = max(bid_dominance, ask_dominance)
-        
-        if max_dominance > self.max_dominance * 1.5:
+    def _assess_manipulation_risk(self, dominance: float, bid_count: int, ask_count: int) -> str:
+        """Manipülasyon riskini değerlendir"""
+        if dominance > 50:
             return 'extreme'
-        elif max_dominance > self.max_dominance:
+        elif dominance > 30:
             return 'high'
-        elif max_dominance > self.max_dominance * 0.7:
+        elif dominance > 20 or (bid_count > 5 or ask_count > 5):
             return 'medium'
         else:
             return 'low'
     
-    def _empty_analysis(self) -> Dict[str, Any]:
-        """Boş analiz sonucu"""
-        return {
-            'has_whale_activity': False,
-            'whale_bids': [],
-            'whale_asks': [],
-            'whale_count': 0,
-            'bid_dominance_percent': 0,
-            'ask_dominance_percent': 0,
-            'net_whale_pressure_usd': 0,
-            'pressure_direction': 'neutral',
-            'manipulation_risk': 'low',
-            'is_suspicious': False
-        }
-    
-    async def detect_spoofing(
-        self,
-        orderbook_snapshots: List[Dict[str, Any]],
-        time_window_seconds: int = 60
-    ) -> bool:
-        """Spoofing (sahte order) tespit et"""
-        # Order book'ta büyük orderların hızlıca eklendi çıkarıldığını kontrol et
-        # Bu gelişmiş bir feature, şimdilik basit implement
+    def _detect_spoofing_pattern(self, whale_bids: List[Dict], whale_asks: List[Dict]) -> bool:
+        """Spoofing pattern tespit et"""
+        # Tek tarafta çok fazla büyük order = spoofing şüphesi
+        if len(whale_bids) > 3 and len(whale_asks) == 0:
+            return True
+        if len(whale_asks) > 3 and len(whale_bids) == 0:
+            return True
+        
         return False
     
     def calculate_order_book_imbalance(self, orderbook: Dict[str, Any]) -> float:
-        """Order book dengesizliği hesapla"""
+        """Order book imbalance hesapla"""
         try:
             bids = orderbook.get('bids', [])
             asks = orderbook.get('asks', [])
@@ -143,19 +133,34 @@ class WhaleTracker:
             if not bids or not asks:
                 return 0.0
             
-            # İlk 10 seviye
-            bid_volume = sum(bid[1] for bid in bids[:10])
-            ask_volume = sum(ask[1] for ask in asks[:10])
+            bid_volume = sum(bid[0] * bid[1] for bid in bids[:10])
+            ask_volume = sum(ask[0] * ask[1] for ask in asks[:10])
             
             total_volume = bid_volume + ask_volume
+            
             if total_volume == 0:
                 return 0.0
             
-            # Pozitif = daha fazla bid (bullish), Negatif = daha fazla ask (bearish)
-            imbalance = (bid_volume - ask_volume) / total_volume * 100
+            imbalance = ((bid_volume - ask_volume) / total_volume) * 100
             
-            return round(imbalance, 2)
+            return imbalance
             
         except Exception as e:
-            logger.error(f"❌ Order book imbalance hatası: {e}")
+            logger.error(f"❌ Imbalance hesaplama hatası: {e}")
             return 0.0
+    
+    def _empty_analysis(self) -> Dict[str, Any]:
+        """Boş analiz"""
+        return {
+            'has_whale_activity': False,
+            'whale_bids': [],
+            'whale_asks': [],
+            'whale_bid_count': 0,
+            'whale_ask_count': 0,
+            'whale_bid_volume_usd': 0,
+            'whale_ask_volume_usd': 0,
+            'whale_dominance_percent': 0,
+            'pressure_direction': 'neutral',
+            'manipulation_risk': 'low',
+            'is_suspicious': False
+        }
