@@ -1,7 +1,7 @@
-“””
+"""
 MEXC Pro Trading Bot - Risk Manager
 Risk yönetimi ve position sizing
-“””
+"""
 
 from typing import Dict, Any, List
 from config.settings import trading_config
@@ -10,9 +10,9 @@ from utils.logger import get_logger
 logger = get_logger(**name**)
 
 class RiskManager:
-“”“Risk yönetim sınıfı”””
+"""Risk yönetim sınıfı"""
 
-```
+'''
 def __init__(self):
     self.config = trading_config
     self.max_correlation = 0.7  # Maximum coin korelasyonu
@@ -172,4 +172,4 @@ def assess_portfolio_risk(
         'is_overexposed': is_overexposed,
         'avg_risk_per_position': total_risk / position_count if position_count > 0 else 0
     }
-```
+'''
