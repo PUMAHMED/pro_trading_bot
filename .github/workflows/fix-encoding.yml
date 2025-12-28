@@ -1,0 +1,68 @@
+name: Tipografik Tırnakları Düzelt
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-encoding:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Repository'yi İndir
+        uses: actions/checkout@v3
+        
+      - name: Python Ortamını Hazırla
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Tipografik Tırnakları Düzelt
+        run: |
+          cat << 'EOF' > fix_quotes.py
+          import os
+          from pathlib import Path
+          
+          replacements = {
+              '"': '"',
+              '"': '"',
+              ''': "'",
+              ''': "'",
+              '‚': "'",
+              '„': '"',
+          }
+          
+          fixed_count = 0
+          
+          for py_file in Path('.').rglob('*.py'):
+              if any(part.startswith('.') or part in ['venv', 'env', '__pycache__'] 
+                     for part in py_file.parts):
+                  continue
+              
+              try:
+                  content = py_file.read_text(encoding='utf-8')
+                  original = content
+                  
+                  for wrong, correct in replacements.items():
+                      content = content.replace(wrong, correct)
+                  
+                  if content != original:
+                      py_file.write_text(content, encoding='utf-8')
+                      print(f"Düzeltildi: {py_file}")
+                      fixed_count += 1
+              except Exception as e:
+                  print(f"Hata: {py_file} - {e}")
+          
+          print(f"\nToplam {fixed_count} dosya düzeltildi.")
+          EOF
+          
+          python fix_quotes.py
+      
+      - name: Değişiklikleri Kaydet
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+          git add -A
+          git diff --staged --quiet || git commit -m "fix: Tipografik tırnaklar standart ASCII tırnaklarla değiştirildi"
+          git push
