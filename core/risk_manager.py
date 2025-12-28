@@ -7,7 +7,8 @@ from typing import Dict, Any, List
 from config.settings import trading_config
 from utils.logger import get_logger
 
-logger = get_logger(**name**)
+logger = get_logger(__name__)
+
 
 class RiskManager:
 """Risk yönetim sınıfı"""
