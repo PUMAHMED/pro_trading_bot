@@ -1,157 +1,141 @@
 """
-MEXC Pro Trading Bot - MEXC Exchange Client
+MEXC Pro Trading Bot - MEXC Client
 MEXC exchange API client
 """
 
-from typing import List, Dict, Any, Optional
 import ccxt.async_support as ccxt
-import asyncio
+from typing import Dict, Any, List, Optional
 from exchanges.base_client import BaseExchangeClient
 from config.settings import exchange_config
+from config.exchanges import MEXC_CONFIG
 from utils.logger import get_logger
 from utils.cache import cache_manager
 
 logger = get_logger(__name__)
+
 
 class MEXCClient(BaseExchangeClient):
     """MEXC exchange client"""
     
     def __init__(self):
         super().__init__(
+            exchange_id='mexc',
             api_key=exchange_config.MEXC_API_KEY,
-            api_secret=exchange_config.MEXC_API_SECRET,
-            exchange_name='MEXC'
+            api_secret=exchange_config.MEXC_API_SECRET
         )
-        
+        self.config = MEXC_CONFIG
+    
     async def initialize(self):
-        """MEXC exchange'i başlat"""
+        """MEXC bağlantısını başlat"""
         try:
             self.exchange = ccxt.mexc({
                 'apiKey': self.api_key,
                 'secret': self.api_secret,
                 'enableRateLimit': True,
-                'rateLimit': 1000 / exchange_config.MEXC_RATE_LIMIT * 60000,
+                'rateLimit': 1000 / self.config['rate_limit_per_second'],
                 'options': {
-                    'defaultType': 'spot',
+                    'defaultType': 'spot'
                 }
             })
             
             await self.exchange.load_markets()
-            logger.info(f"✅ MEXC bağlantısı kuruldu - {len(self.exchange.markets)} market")
+            self.is_initialized = True
+            logger.info("✅ MEXC bağlantısı başarılı")
             
         except Exception as e:
-            logger.error(f"❌ MEXC başlatma hatası: {e}")
+            logger.error(f"❌ MEXC bağlantı hatası: {e}")
             raise
     
     async def get_all_symbols(self, quote_currency: str = 'USDT') -> List[str]:
-        """Tüm USDT çiftlerini al"""
-        cache_key = f"mexc:symbols:{quote_currency}"
-        cached = await cache_manager.get(cache_key)
-        if cached:
-            return cached
-        
+        """Tüm USDT çiftlerini getir"""
         try:
-            symbols = []
-            for symbol, market in self.exchange.markets.items():
-                if (market['quote'] == quote_currency and 
-                    market['active'] and 
-                    market['spot']):
-                    symbols.append(symbol)
+            cache_key = f"mexc_symbols_{quote_currency}"
+            cached = await cache_manager.get(cache_key)
+            if cached:
+                return cached
+            
+            markets = await self.exchange.fetch_markets()
+            
+            symbols = [
+                market['symbol']
+                for market in markets
+                if market['quote'] == quote_currency
+                and market['active']
+                and market['spot']
+            ]
             
             await cache_manager.set(cache_key, symbols, ttl=3600)
-            logger.info(f"📊 MEXC: {len(symbols)} {quote_currency} çifti bulundu")
+            
             return symbols
             
         except Exception as e:
-            self._handle_error(e, 'get_all_symbols')
+            logger.error(f"❌ MEXC symbol listesi hatası: {e}")
             return []
     
     async def get_ticker(self, symbol: str) -> Dict[str, Any]:
-        """Ticker bilgisi al"""
+        """Ticker bilgisi"""
         try:
             ticker = await self.exchange.fetch_ticker(symbol)
+            
             return {
                 'symbol': symbol,
-                'last': ticker['last'],
-                'bid': ticker['bid'],
-                'ask': ticker['ask'],
-                'volume': ticker['baseVolume'],
-                'quote_volume': ticker['quoteVolume'],
-                'high': ticker['high'],
-                'low': ticker['low'],
-                'open': ticker['open'],
-                'close': ticker['close'],
-                'change': ticker['percentage'],
-                'timestamp': ticker['timestamp']
+                'last': ticker.get('last'),
+                'bid': ticker.get('bid'),
+                'ask': ticker.get('ask'),
+                'high': ticker.get('high'),
+                'low': ticker.get('low'),
+                'volume': ticker.get('baseVolume'),
+                'quote_volume': ticker.get('quoteVolume'),
+                'change': ticker.get('change'),
+                'percentage': ticker.get('percentage'),
+                'timestamp': ticker.get('timestamp')
             }
+            
         except Exception as e:
-            self._handle_error(e, f'get_ticker:{symbol}')
+            logger.debug(f"Ticker hatası {symbol}: {e}")
             return {}
     
     async def get_ohlcv(self, symbol: str, timeframe: str = '15m', limit: int = 100) -> List[List]:
-        """OHLCV verisi al"""
-        cache_key = f"mexc:ohlcv:{symbol}:{timeframe}:{limit}"
-        cached = await cache_manager.get(cache_key)
-        if cached:
-            return cached
-        
+        """OHLCV verisi"""
         try:
+            cache_key = f"mexc_ohlcv_{symbol}_{timeframe}_{limit}"
+            cached = await cache_manager.get(cache_key)
+            if cached:
+                return cached
+            
             ohlcv = await self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
             await cache_manager.set(cache_key, ohlcv, ttl=60)
+            
             return ohlcv
             
         except Exception as e:
-            self._handle_error(e, f'get_ohlcv:{symbol}')
+            logger.debug(f"OHLCV hatası {symbol}: {e}")
             return []
     
     async def get_orderbook(self, symbol: str, limit: int = 20) -> Dict[str, Any]:
-        """Order book al"""
+        """Order book"""
         try:
             orderbook = await self.exchange.fetch_order_book(symbol, limit=limit)
+            
             return {
-                'bids': orderbook['bids'],
-                'asks': orderbook['asks'],
-                'timestamp': orderbook['timestamp']
+                'symbol': symbol,
+                'bids': orderbook.get('bids', []),
+                'asks': orderbook.get('asks', []),
+                'timestamp': orderbook.get('timestamp'),
+                'datetime': orderbook.get('datetime')
             }
+            
         except Exception as e:
-            self._handle_error(e, f'get_orderbook:{symbol}')
-            return {'bids': [], 'asks': [], 'timestamp': None}
+            logger.debug(f"Order book hatası {symbol}: {e}")
+            return {}
     
-    async def get_24h_volume(self, symbol: str) -> float:
-        """24 saatlik volume al"""
+    async def get_trades(self, symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Son işlemler"""
         try:
-            ticker = await self.exchange.fetch_ticker(symbol)
-            return ticker['quoteVolume'] or 0.0
-        except Exception as e:
-            self._handle_error(e, f'get_24h_volume:{symbol}')
-            return 0.0
-    
-    async def get_futures_symbols(self) -> List[str]:
-        """Futures trading çiftlerini al"""
-        try:
-            # MEXC futures marketi yükle
-            futures_exchange = ccxt.mexc({
-                'apiKey': self.api_key,
-                'secret': self.api_secret,
-                'options': {'defaultType': 'swap'}
-            })
-            
-            await futures_exchange.load_markets()
-            symbols = [s for s in futures_exchange.markets.keys() if futures_exchange.markets[s]['active']]
-            await futures_exchange.close()
-            
-            return symbols
+            trades = await self.exchange.fetch_trades(symbol, limit=limit)
+            return trades
             
         except Exception as e:
-            logger.error(f"❌ MEXC futures symbols hatası: {e}")
+            logger.debug(f"Trades hatası {symbol}: {e}")
             return []
-    
-    async def get_funding_rate(self, symbol: str) -> Optional[float]:
-        """Funding rate al (futures)"""
-        try:
-            # Futures için funding rate
-            funding = await self.exchange.fetch_funding_rate(symbol)
-            return funding.get('fundingRate')
-        except Exception as e:
-            logger.debug(f"Funding rate alınamadı: {symbol}")
-            return None
