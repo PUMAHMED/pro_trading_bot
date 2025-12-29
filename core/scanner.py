@@ -1,6 +1,6 @@
 """
 MEXC Pro Trading Bot - Coin Scanner
-Çoklu exchange coin tarama motoru
+Çoklu exchange coin tarama motoru - MEXC ve Binance düzeltildi
 """
 
 import asyncio
@@ -30,6 +30,8 @@ class CoinScanner:
         self.performance_config = performance_config
         
         self.active_symbols: Set[str] = set()
+        self.mexc_symbols: Set[str] = set()
+        self.binance_symbols: Set[str] = set()
         self.last_update_time = None
         
         self.is_initialized = False
@@ -50,7 +52,12 @@ class CoinScanner:
             await self._load_initial_coin_list()
             
             self.is_initialized = True
-            logger.info(f"✅ Scanner başlatıldı - {len(self.active_symbols)} coin tracking")
+            logger.info(
+                f"✅ Scanner başlatıldı - "
+                f"MEXC: {len(self.mexc_symbols)}, "
+                f"Binance: {len(self.binance_symbols)}, "
+                f"Toplam: {len(self.active_symbols)} coin"
+            )
             
         except Exception as e:
             logger.error(f"❌ Scanner başlatma hatası: {e}", exc_info=True)
@@ -69,7 +76,7 @@ class CoinScanner:
             if self._should_update_coin_list():
                 await self._update_coin_list()
             
-            # Paralel tarama
+            # Paralel tarama - HER İKİ EXCHANGE
             mexc_task = asyncio.create_task(self._scan_exchange(self.mexc_client, ExchangeName.MEXC))
             binance_task = asyncio.create_task(self._scan_exchange(self.binance_client, ExchangeName.BINANCE))
             
@@ -84,11 +91,13 @@ class CoinScanner:
             
             if isinstance(mexc_results, list):
                 all_results.extend(mexc_results)
+                logger.info(f"✅ MEXC: {len(mexc_results)} coin tarandı")
             else:
                 logger.error(f"❌ MEXC tarama hatası: {mexc_results}")
             
             if isinstance(binance_results, list):
                 all_results.extend(binance_results)
+                logger.info(f"✅ Binance: {len(binance_results)} coin tarandı")
             else:
                 logger.error(f"❌ Binance tarama hatası: {binance_results}")
             
@@ -97,8 +106,8 @@ class CoinScanner:
             
             scan_duration = (datetime.now() - scan_start).total_seconds()
             logger.info(
-                f"✅ Tarama tamamlandı: {len(all_results)} coin, "
-                f"{len(filtered_results)} passed filters ({scan_duration:.2f}s)"
+                f"✅ Tarama tamamlandı: {len(all_results)} coin tarandı, "
+                f"{len(filtered_results)} filtreleri geçti ({scan_duration:.2f}s)"
             )
             
             return filtered_results
@@ -114,13 +123,13 @@ class CoinScanner:
     ) -> List[Dict[str, Any]]:
         """Tek bir exchange'i tara"""
         try:
-            # Quote currency'lere göre coinleri al
+            # SADECE USDT paritelerini al
             all_symbols = []
-            for quote in self.config.QUOTE_CURRENCIES:
+            for quote in self.config.QUOTE_CURRENCIES:  # ['USDT']
                 symbols = await client.get_all_symbols(quote)
                 all_symbols.extend(symbols)
             
-            logger.info(f"📊 {exchange_name.value}: {len(all_symbols)} symbol bulundu")
+            logger.info(f"📊 {exchange_name.value}: {len(all_symbols)} USDT çifti bulundu")
             
             # Paralel batch tarama
             batch_size = self.performance_config.MAX_CONCURRENT_TASKS
@@ -140,6 +149,7 @@ class CoinScanner:
                     if isinstance(result, dict) and result.get('success'):
                         results.append(result)
             
+            logger.info(f"✅ {exchange_name.value}: {len(results)} coin filtreleri geçti")
             return results
             
         except Exception as e:
@@ -265,36 +275,55 @@ class CoinScanner:
         return volatility
     
     async def _load_initial_coin_list(self):
-        """İlk coin listesini yükle"""
+        """İlk coin listesini yükle - HER İKİ EXCHANGE"""
         try:
             # MEXC coinleri
-            for quote in self.config.QUOTE_CURRENCIES:
+            logger.info("📊 MEXC coinleri yükleniyor...")
+            for quote in self.config.QUOTE_CURRENCIES:  # ['USDT']
                 mexc_symbols = await self.mexc_client.get_all_symbols(quote)
+                self.mexc_symbols.update(mexc_symbols)
                 self.active_symbols.update(mexc_symbols)
+            logger.info(f"✅ MEXC: {len(self.mexc_symbols)} coin yüklendi")
             
             # Binance coinleri
-            for quote in self.config.QUOTE_CURRENCIES:
+            logger.info("📊 Binance coinleri yükleniyor...")
+            for quote in self.config.QUOTE_CURRENCIES:  # ['USDT']
                 binance_symbols = await self.binance_client.get_all_symbols(quote)
+                self.binance_symbols.update(binance_symbols)
                 self.active_symbols.update(binance_symbols)
+            logger.info(f"✅ Binance: {len(self.binance_symbols)} coin yüklendi")
             
             self.last_update_time = datetime.now()
             
             # Database'e kaydet
             async with get_session() as session:
-                for symbol in self.active_symbols:
-                    exchange = ExchangeName.MEXC
-                    
+                # MEXC coinleri
+                for symbol in self.mexc_symbols:
                     await CoinOperations.upsert_coin(session, {
                         'symbol': symbol,
-                        'exchange': exchange,
+                        'exchange': ExchangeName.MEXC,
+                        'is_active': True,
+                        'last_scanned': datetime.utcnow()
+                    })
+                
+                # Binance coinleri
+                for symbol in self.binance_symbols:
+                    await CoinOperations.upsert_coin(session, {
+                        'symbol': symbol,
+                        'exchange': ExchangeName.BINANCE,
                         'is_active': True,
                         'last_scanned': datetime.utcnow()
                     })
             
-            logger.info(f"📊 {len(self.active_symbols)} coin listesi yüklendi")
+            logger.info(
+                f"📊 Coin listesi yüklendi - "
+                f"MEXC: {len(self.mexc_symbols)}, "
+                f"Binance: {len(self.binance_symbols)}, "
+                f"Toplam: {len(self.active_symbols)}"
+            )
             
         except Exception as e:
-            logger.error(f"❌ Coin listesi yükleme hatası: {e}")
+            logger.error(f"❌ Coin listesi yükleme hatası: {e}", exc_info=True)
     
     def _should_update_coin_list(self) -> bool:
         """Coin listesi güncellenmeli mi?"""
@@ -302,28 +331,45 @@ class CoinScanner:
             return True
         
         time_diff = (datetime.now() - self.last_update_time).total_seconds()
-        return time_diff > 3600
+        return time_diff > 3600  # Her 1 saatte bir güncelle
     
     async def _update_coin_list(self):
         """Coin listesini güncelle (yeni coinler için)"""
         try:
-            old_count = len(self.active_symbols)
+            old_total = len(self.active_symbols)
+            old_mexc = len(self.mexc_symbols)
+            old_binance = len(self.binance_symbols)
             
+            # MEXC güncelle
             for quote in self.config.QUOTE_CURRENCIES:
                 mexc_symbols = await self.mexc_client.get_all_symbols(quote)
+                new_mexc = set(mexc_symbols) - self.mexc_symbols
+                
+                if new_mexc:
+                    logger.info(f"🆕 MEXC: {len(new_mexc)} yeni coin tespit edildi")
+                    self.mexc_symbols.update(new_mexc)
+                    self.active_symbols.update(new_mexc)
+            
+            # Binance güncelle
+            for quote in self.config.QUOTE_CURRENCIES:
                 binance_symbols = await self.binance_client.get_all_symbols(quote)
+                new_binance = set(binance_symbols) - self.binance_symbols
                 
-                new_symbols = (set(mexc_symbols) | set(binance_symbols)) - self.active_symbols
-                
-                if new_symbols:
-                    logger.info(f"🆕 {len(new_symbols)} yeni coin tespit edildi")
-                    self.active_symbols.update(new_symbols)
+                if new_binance:
+                    logger.info(f"🆕 Binance: {len(new_binance)} yeni coin tespit edildi")
+                    self.binance_symbols.update(new_binance)
+                    self.active_symbols.update(new_binance)
             
             self.last_update_time = datetime.now()
-            new_count = len(self.active_symbols)
             
-            if new_count > old_count:
-                logger.info(f"📊 Coin listesi güncellendi: {old_count} -> {new_count}")
+            new_total = len(self.active_symbols)
+            if new_total > old_total:
+                logger.info(
+                    f"📊 Coin listesi güncellendi - "
+                    f"MEXC: {old_mexc} -> {len(self.mexc_symbols)}, "
+                    f"Binance: {old_binance} -> {len(self.binance_symbols)}, "
+                    f"Toplam: {old_total} -> {new_total}"
+                )
             
         except Exception as e:
             logger.error(f"❌ Coin listesi güncelleme hatası: {e}")
