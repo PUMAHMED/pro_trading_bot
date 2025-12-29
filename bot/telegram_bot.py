@@ -47,7 +47,7 @@ class TelegramBot:
                 self.performance_monitor
             )
             
-            # Komutları kaydet
+            # Komutları ve callback'leri kaydet
             self._register_handlers()
             
             # Bot'u başlat
@@ -69,22 +69,41 @@ class TelegramBot:
             raise
     
     def _register_handlers(self):
-        """Handler'ları kaydet"""
+        """Tüm handler'ları kaydet"""
+        
         # Komutlar
         self.app.add_handler(CommandHandler("start", self.handlers.start_command))
         self.app.add_handler(CommandHandler("help", self.handlers.help_command))
         self.app.add_handler(CommandHandler("status", self.handlers.status_command))
+        self.app.add_handler(CommandHandler("analyze", self.handlers.analyze_command))
         
-        # Callbacks
+        # Ana menü callbacks
         self.app.add_handler(CallbackQueryHandler(self.handlers.stats_callback, pattern='^stats$'))
         self.app.add_handler(CallbackQueryHandler(self.handlers.analyze_callback, pattern='^analyze$'))
         self.app.add_handler(CallbackQueryHandler(self.handlers.settings_callback, pattern='^settings$'))
+        self.app.add_handler(CallbackQueryHandler(self.handlers.report_callback, pattern='^report$'))
+        self.app.add_handler(CallbackQueryHandler(self.handlers.notifications_callback, pattern='^notifications$'))
+        self.app.add_handler(CallbackQueryHandler(self.handlers.status_callback, pattern='^status$'))
         self.app.add_handler(CallbackQueryHandler(self.handlers.main_menu_callback, pattern='^main_menu$'))
         
-        # Unknown
+        # Ayarlar callbacks
+        self.app.add_handler(CallbackQueryHandler(
+            self.handlers.settings_notifications_callback, 
+            pattern='^settings_notifications$'
+        ))
+        self.app.add_handler(CallbackQueryHandler(
+            self.handlers.settings_filters_callback, 
+            pattern='^settings_filters$'
+        ))
+        self.app.add_handler(CallbackQueryHandler(
+            self.handlers.settings_risk_callback, 
+            pattern='^settings_risk$'
+        ))
+        
+        # Unknown commands
         self.app.add_handler(MessageHandler(filters.COMMAND, self.handlers.unknown_command))
         
-        logger.info("✅ Handler'lar kaydedildi")
+        logger.info("✅ Tüm handler'lar kaydedildi")
     
     async def send_signal(self, signal: dict):
         """Sinyal gönder"""
@@ -93,6 +112,35 @@ class TelegramBot:
             await self.notification_manager.send_signal_notification(signal, formatted_message)
         except Exception as e:
             logger.error(f"❌ Sinyal gönderme hatası: {e}")
+    
+    async def send_tp_notification(self, signal: dict, tp_level: str, price: float, profit: float, duration: str):
+        """TP bildirimi gönder"""
+        try:
+            await self.notification_manager.send_tp_notification(signal, tp_level, price, profit, duration)
+        except Exception as e:
+            logger.error(f"❌ TP bildirimi hatası: {e}")
+    
+    async def send_sl_notification(self, signal: dict):
+        """SL bildirimi gönder"""
+        try:
+            message = f"""
+⚠️ <b>STOP LOSS YAKLAŞIYOR</b>
+
+💎 Coin: {signal['symbol']}
+📊 Exchange: {signal['exchange'].value}
+
+🛡️ Stop Loss: ${signal['stop_loss']:.8f}
+💰 Şu Anki Fiyat: ${signal['current_price']:.8f}
+
+⚠️ Pozisyonunuzu gözden geçirin!
+"""
+            await self.app.bot.send_message(
+                chat_id=self.admin_id,
+                text=message,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"❌ SL bildirimi hatası: {e}")
     
     async def send_heartbeat(self, stats: dict):
         """Heartbeat gönder"""
