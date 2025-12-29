@@ -40,21 +40,22 @@ async def init_database():
         logger.info(f"📊 Veritabanı bağlantısı kuruluyor...")
         
         # Engine parametrelerini hazırla
-        engine_params = {
-            'echo': False,
-            'pool_pre_ping': True,
-            'pool_recycle': 3600
-        }
-        
-        # SQLite için özel ayarlar
-        if is_sqlite:
-            engine_params['poolclass'] = NullPool
-            engine_params['connect_args'] = {'check_same_thread': False}
-        else:
-            # PostgreSQL için pool ayarları
-            engine_params['poolclass'] = QueuePool
-            engine_params['pool_size'] = performance_config.CONNECTION_POOL_SIZE
-            engine_params['max_overflow'] = 20
+engine_params = {
+    'echo': False,
+    'future': True
+}
+
+# SQLite için özel ayarlar (POOL YOK)
+if is_sqlite:
+    engine_params['connect_args'] = {'check_same_thread': False}
+else:
+    # PostgreSQL için pool ayarları
+    engine_params.update({
+        'pool_size': performance_config.CONNECTION_POOL_SIZE,
+        'max_overflow': 20,
+        'pool_pre_ping': True,
+        'pool_recycle': 3600
+    })
         
         # Engine oluştur
         engine = create_async_engine(db_url, **engine_params)
