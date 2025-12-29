@@ -4,7 +4,7 @@ Veritabanı bağlantı yönetimi
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, QueuePool
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -29,22 +29,35 @@ async def init_database():
         # SQLite için async URL'e çevir
         if db_url.startswith('sqlite'):
             db_url = db_url.replace('sqlite://', 'sqlite+aiosqlite://')
+            is_sqlite = True
         # PostgreSQL için async URL'e çevir
         elif db_url.startswith('postgresql'):
             db_url = db_url.replace('postgresql://', 'postgresql+asyncpg://')
+            is_sqlite = False
+        else:
+            is_sqlite = 'sqlite' in db_url
         
         logger.info(f"📊 Veritabanı bağlantısı kuruluyor...")
         
+        # Engine parametrelerini hazırla
+        engine_params = {
+            'echo': False,
+            'pool_pre_ping': True,
+            'pool_recycle': 3600
+        }
+        
+        # SQLite için özel ayarlar
+        if is_sqlite:
+            engine_params['poolclass'] = NullPool
+            engine_params['connect_args'] = {'check_same_thread': False}
+        else:
+            # PostgreSQL için pool ayarları
+            engine_params['poolclass'] = QueuePool
+            engine_params['pool_size'] = performance_config.CONNECTION_POOL_SIZE
+            engine_params['max_overflow'] = 20
+        
         # Engine oluştur
-        engine = create_async_engine(
-            db_url,
-            echo=False,
-            poolclass=NullPool if 'sqlite' in db_url else None,
-            pool_size=performance_config.CONNECTION_POOL_SIZE if 'postgresql' in db_url else None,
-            max_overflow=20 if 'postgresql' in db_url else None,
-            pool_pre_ping=True,
-            pool_recycle=3600
-        )
+        engine = create_async_engine(db_url, **engine_params)
         
         # Session maker oluştur
         async_session_maker = async_sessionmaker(
@@ -93,7 +106,8 @@ async def test_connection() -> bool:
     """Veritabanı bağlantısını test et"""
     try:
         async with get_session() as session:
-            await session.execute("SELECT 1")
+            from sqlalchemy import text
+            await session.execute(text("SELECT 1"))
         logger.info("✅ Veritabanı bağlantısı başarılı")
         return True
     except Exception as e:
