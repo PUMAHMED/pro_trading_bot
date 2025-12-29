@@ -290,8 +290,9 @@ class SignalGenerator:
         # Tahmini süre
         estimated_duration = estimate_duration(volatility, trading_config.TP1_SPOT_FIXED)
         
-        # Risk seviyesi
-        risk_level = get_risk_level(leverage, overall_score)
+        # Risk seviyesi - coin ve analizine göre (kaldıraca göre DEĞİL)
+        from utils.helpers import calculate_risk_level
+        risk_level = calculate_risk_level(analysis)
         
         # Analiz özeti formatla
         analysis_summary = "\n".join(analysis.get('analysis_summary', [])[:5])
