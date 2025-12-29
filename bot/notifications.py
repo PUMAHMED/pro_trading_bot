@@ -1,10 +1,11 @@
 """
 MEXC Pro Trading Bot - Notification Manager
-Bildirim yönetim sistemi
+Bildirim yönetim sistemi - TP/SL bildirimleri eklendi
 """
 
 from typing import Dict, Any, Optional
 from datetime import datetime
+import pytz
 from telegram import Bot
 from telegram.error import TelegramError
 from config.settings import bot_config, notification_config
@@ -23,13 +24,18 @@ class NotificationManager:
         
         self.notification_count = 0
         self.last_minute_start = datetime.now()
-        
+    
+    def _get_istanbul_time(self) -> str:
+        """İstanbul saatini formatlanmış string olarak al"""
+        tz = pytz.timezone(bot_config.TIMEZONE)
+        return datetime.now(tz).strftime('%H:%M:%S')
+    
     async def send_signal_notification(self, signal: Dict[str, Any], formatted_message: str):
         """Sinyal bildirimi gönder"""
         try:
             # Rate limit kontrolü
             if not self._check_rate_limit():
-                logger.warning("⚠️ Bildirim rate limit aşıldı, atlaniyor")
+                logger.warning("⚠️ Bildirim rate limit aşıldı, atlanıyor")
                 return
             
             # Kullanıcı tercihlerine göre filtrele
@@ -50,19 +56,34 @@ class NotificationManager:
         except Exception as e:
             logger.error(f"❌ Bildirim hatası: {e}")
     
-    async def send_tp_notification(self, signal: Dict[str, Any], tp_level: str, price: float, profit: float, duration: str):
+    async def send_tp_notification(
+        self, 
+        signal: Dict[str, Any], 
+        tp_level: str, 
+        price: float, 
+        profit: float, 
+        duration: str
+    ):
         """TP bildir"""
         if not self.config.NOTIFY_TP_REACHED:
             return
         
         try:
-            message = NOTIFICATION_TEMPLATES['tp_reached'].format(
-                symbol=signal['symbol'],
-                tp_level=tp_level,
-                price=price,
-                profit=profit,
-                duration=duration
-            )
+            time_str = self._get_istanbul_time()
+            
+            message = f"""
+🎉 <b>HEDEF ULAŞILDI!</b>
+
+💎 Coin: {signal['symbol']}
+📊 Exchange: {signal['exchange'].value if hasattr(signal['exchange'], 'value') else signal['exchange']}
+🎯 {tp_level}: ${price:.8f}
+💰 Kar: +{profit:.2f}%
+
+⏱️ Süre: {duration}
+🕒 Saat: {time_str} (İST)
+
+🎊 Tebrikler!
+"""
             
             await self.bot.send_message(
                 chat_id=self.admin_id,
@@ -75,17 +96,134 @@ class NotificationManager:
         except Exception as e:
             logger.error(f"❌ TP bildirim hatası: {e}")
     
-    async def send_update_notification(self, symbol: str, update_type: str, details: str):
-        """Güncelleme bildirimi"""
+    async def send_sl_notification(self, signal: Dict[str, Any]):
+        """SL yaklaşıyor bildirimi"""
+        if not self.config.NOTIFY_SL_APPROACHING:
+            return
+        
+        try:
+            time_str = self._get_istanbul_time()
+            
+            message = f"""
+⚠️ <b>STOP LOSS YAKLAŞIYOR</b>
+
+💎 Coin: {signal['symbol']}
+📊 Exchange: {signal['exchange'].value if hasattr(signal['exchange'], 'value') else signal['exchange']}
+
+🛡️ Stop Loss: ${signal['stop_loss']:.8f}
+💰 Şu Anki Fiyat: ${signal.get('current_price', 0):.8f}
+
+🕒 Saat: {time_str} (İST)
+
+⚠️ Pozisyonunuzu gözden geçirin!
+"""
+            
+            await self.bot.send_message(
+                chat_id=self.admin_id,
+                text=message,
+                parse_mode='HTML'
+            )
+            
+            logger.info(f"⚠️ SL bildirimi gönderildi: {signal['symbol']}")
+            
+        except Exception as e:
+            logger.error(f"❌ SL bildirim hatası: {e}")
+    
+    async def send_signal_cancelled(self, signal: Dict[str, Any], reason: str):
+        """Sinyal iptal bildirimi - Analiz bozulması"""
+        if not self.config.NOTIFY_ANALYSIS_BROKEN:
+            return
+        
+        try:
+            time_str = self._get_istanbul_time()
+            
+            message = f"""
+🚫 <b>SİNYAL İPTAL EDİLDİ</b>
+
+💎 Coin: {signal['symbol']}
+📊 Exchange: {signal['exchange'].value if hasattr(signal['exchange'], 'value') else signal['exchange']}
+
+❌ İptal Nedeni:
+{reason}
+
+🕒 Saat: {time_str} (İST)
+
+⚠️ Bu coin için pozisyon açmayın veya açtıysanız kapatın!
+"""
+            
+            await self.bot.send_message(
+                chat_id=self.admin_id,
+                text=message,
+                parse_mode='HTML'
+            )
+            
+            logger.info(f"🚫 İptal bildirimi gönderildi: {signal['symbol']}")
+            
+        except Exception as e:
+            logger.error(f"❌ İptal bildirimi hatası: {e}")
+    
+    async def send_signal_updated(
+        self, 
+        signal: Dict[str, Any], 
+        old_target: float, 
+        new_target: float,
+        reason: str
+    ):
+        """Sinyal güncelleme bildirimi - Kar beklentisi artışı"""
         if not self.config.NOTIFY_TARGET_UPDATED:
             return
         
         try:
-            message = NOTIFICATION_TEMPLATES['update'].format(
-                symbol=symbol,
-                update_type=update_type,
-                details=details
+            time_str = self._get_istanbul_time()
+            improvement = ((new_target - old_target) / old_target) * 100
+            
+            message = f"""
+📈 <b>SİNYAL GÜNCELLENDİ</b>
+
+💎 Coin: {signal['symbol']}
+📊 Exchange: {signal['exchange'].value if hasattr(signal['exchange'], 'value') else signal['exchange']}
+
+🎯 Eski Hedef: ${old_target:.8f}
+🎯 Yeni Hedef: ${new_target:.8f}
+📈 İyileşme: +{improvement:.2f}%
+
+💡 Güncelleme Nedeni:
+{reason}
+
+🕒 Saat: {time_str} (İST)
+
+✅ Kar beklentisi arttı!
+"""
+            
+            await self.bot.send_message(
+                chat_id=self.admin_id,
+                text=message,
+                parse_mode='HTML'
             )
+            
+            logger.info(f"📈 Güncelleme bildirimi gönderildi: {signal['symbol']}")
+            
+        except Exception as e:
+            logger.error(f"❌ Güncelleme bildirimi hatası: {e}")
+    
+    async def send_update_notification(self, symbol: str, update_type: str, details: str):
+        """Genel güncelleme bildirimi"""
+        if not self.config.NOTIFY_TARGET_UPDATED:
+            return
+        
+        try:
+            time_str = self._get_istanbul_time()
+            
+            message = f"""
+🔄 <b>GÜNCELLEME</b>
+
+💎 Coin: {symbol}
+📊 Tip: {update_type}
+
+{details}
+
+🕒 Saat: {time_str} (İST)
+"""
             
             await self.bot.send_message(
                 chat_id=self.admin_id,
@@ -99,12 +237,18 @@ class NotificationManager:
     async def send_heartbeat(self, stats: Dict[str, Any]):
         """Sistem durumu heartbeat"""
         try:
-            message = NOTIFICATION_TEMPLATES['heartbeat'].format(
-                timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                coins_scanned=stats.get('avg_coins_per_scan', 0),
-                signals_today=stats.get('total_signals', 0),
-                success_rate=stats.get('success_rate', 0)
-            )
+            time_str = self._get_istanbul_time()
+            
+            message = f"""
+💓 <b>Sistem Durumu</b>
+
+⏰ Saat: {time_str} (İST)
+📊 Taranan Coin: {stats.get('avg_coins_per_scan', 0)}
+📈 Bugünkü Sinyal: {stats.get('total_signals', 0)}
+🎯 Başarı Oranı: {stats.get('success_rate', 0):.1f}%
+
+✅ Sistem normal çalışıyor
+"""
             
             await self.bot.send_message(
                 chat_id=self.admin_id,
@@ -123,7 +267,9 @@ class NotificationManager:
             return
         
         try:
-            message = f"❌ <b>HATA</b>\n\n{error_message}"
+            time_str = self._get_istanbul_time()
+            
+            message = f"❌ <b>HATA</b>\n\n{error_message}\n\n🕒 {time_str} (İST)"
             if error_details:
                 message += f"\n\n<code>{error_details[:500]}</code>"
             
