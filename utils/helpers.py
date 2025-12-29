@@ -4,7 +4,7 @@ Yardımcı fonksiyonlar
 """
 
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from datetime import datetime, timedelta
 
 def format_price(price: float, decimals: int = 8) -> str:
@@ -281,11 +281,88 @@ def format_duration(minutes: int) -> str:
         days = minutes / 1440
         return f"{days:.1f} gün"
 
-def get_risk_level(leverage: int, score: float) -> str:
-    """Risk seviyesini belirle"""
-    if leverage > 200 or score < 70:
+def calculate_risk_level(analysis: Dict[str, Any]) -> str:
+    """
+    Risk seviyesini coin ve analizine göre belirle
+    Kaldıraç değil, coin'in kendisinin risk seviyesi
+    
+    Faktörler:
+    - Manipülasyon riski
+    - Volatilite
+    - Likidite
+    - Sinyal kalitesi/skoru
+    - Spread
+    """
+    risk_score = 0  # 0-100 arası, yüksek = yüksek risk
+    
+    # 1. Manipülasyon analizi
+    manipulation = analysis.get('manipulation_analysis', {})
+    manipulation_score = manipulation.get('manipulation_score', 50)
+    
+    # Manipülasyon skoru 100 = temiz, 0 = manipüle
+    # Risk için tersine çevir
+    if manipulation_score < 30:
+        risk_score += 40  # Çok yüksek manipülasyon riski
+    elif manipulation_score < 50:
+        risk_score += 25  # Yüksek manipülasyon riski
+    elif manipulation_score < 70:
+        risk_score += 10  # Orta manipülasyon riski
+    
+    # 2. Volatilite
+    # Yüksek volatilite = yüksek risk
+    technical = analysis.get('technical_analysis', {})
+    # Volatilite yoksa scan_result'tan alabiliriz
+    # Ancak analysis içinde olmayabilir, o yüzden varsayılan kullan
+    
+    # 3. Likidite
+    orderbook = analysis.get('orderbook_analysis', {})
+    if not orderbook.get('is_liquid', True):
+        risk_score += 25  # Düşük likidite = yüksek risk
+    
+    spread_percent = orderbook.get('spread_percent', 0)
+    if spread_percent > 0.5:
+        risk_score += 15  # Geniş spread = yüksek risk
+    elif spread_percent > 0.3:
+        risk_score += 8
+    
+    # 4. Sinyal kalitesi/skoru
+    overall_score = analysis.get('overall_score', 50)
+    if overall_score < 70:
+        risk_score += 20  # Düşük skor = yüksek risk
+    elif overall_score < 80:
+        risk_score += 10
+    # Yüksek skor = düşük risk (ekleme yok)
+    
+    # 5. Order book derinliği
+    total_depth = orderbook.get('total_depth_usd', 0)
+    if total_depth < 50000:
+        risk_score += 15  # Çok düşük derinlik
+    elif total_depth < 100000:
+        risk_score += 8
+    
+    # 6. Risk faktörleri
+    risk_factors = analysis.get('risk_factors', [])
+    high_risk_count = len([r for r in risk_factors if r.get('severity') == 'HIGH'])
+    risk_score += high_risk_count * 10
+    
+    # Risk seviyesi belirle
+    if risk_score >= 60:
         return "YÜKSEK"
-    elif leverage > 100 or score < 80:
+    elif risk_score >= 35:
+        return "ORTA"
+    else:
+        return "DÜŞÜK"
+
+# Geriye uyumluluk için eski fonksiyonu tut ama yeni adla çağır
+def get_risk_level(leverage: int, score: float) -> str:
+    """
+    ESKİ FONKSİYON - Geriye uyumluluk için
+    Artık kullanılmamalı, calculate_risk_level kullanılmalı
+    """
+    # Basit bir mapping yap
+    if score < 70:
+        return "YÜKSEK"
+    elif score < 80:
         return "ORTA"
     else:
         return "DÜŞÜK"
